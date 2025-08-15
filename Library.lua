@@ -80,10 +80,10 @@ local Library = {
     Scheme = {
         BackgroundColor = Color3.fromRGB(15, 15, 15),
         MainColor = Color3.fromRGB(25, 25, 25),
-        AccentColor = Color3.fromRGB(125, 85, 255),
+        AccentColor = Color3.fromRGB(85, 255, 127),
         OutlineColor = Color3.fromRGB(40, 40, 40),
         FontColor = Color3.new(1, 1, 1),
-        Font = Font.fromEnum(Enum.Font.Code),
+        Font = Font.fromEnum(Enum.Font.Jura),
 
         Red = Color3.fromRGB(255, 50, 50),
         Dark = Color3.new(0, 0, 0),
@@ -93,91 +93,6 @@ local Library = {
     Registry = {},
     DPIRegistry = {},
 }
-
-local ObsidianImageManager = {
-    Assets = {
-        TransparencyTexture = {
-            RobloxId = 139785960036434,
-            Path = "Obsidian/assets/TransparencyTexture.png",
-
-            Id = nil
-        },
-        
-        SaturationMap = {
-            RobloxId = 4155801252,
-            Path = "Obsidian/assets/SaturationMap.png",
-
-            Id = nil
-        }
-    }
-}
-do
-    local BaseURL = "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/"
-
-    local function RecursiveCreatePath(Path: string, IsFile: boolean?)
-        if not isfolder or not makefolder then return end
-
-        local Segments = Path:split("/")
-        local TraversedPath = ""
-
-        if IsFile then
-            table.remove(Segments, #Segments)
-        end
-
-        for _, Segment in ipairs(Segments) do
-            if not isfolder(TraversedPath .. Segment) then
-                makefolder(TraversedPath .. Segment)
-            end
-
-            TraversedPath = TraversedPath .. Segment .. "/"
-        end
-
-        return TraversedPath
-    end
-
-    function ObsidianImageManager.GetAsset(AssetName: string)
-        if not ObsidianImageManager.Assets[AssetName] then
-            return nil
-        end
-
-        local AssetData = ObsidianImageManager.Assets[AssetName]
-        if AssetData.Id then
-            return AssetData.Id
-        end
-
-        local AssetID = `rbxassetid://{AssetData.RobloxId}`
-
-        if getcustomasset then
-            local Success, NewID = pcall(getcustomasset, AssetData.Path)
-
-            if Success and NewID then
-                AssetID = NewID
-            end
-        end
-
-        AssetData.Id = AssetID
-        return AssetID
-    end
-
-    function ObsidianImageManager.DownloadAsset(AssetPath: string)
-        if not getcustomasset or not writefile or not isfile then
-            return
-        end
-
-        RecursiveCreatePath(AssetPath, true)
-
-        if isfile(AssetPath) then
-            return
-        end
-
-        local URLPath = AssetPath:gsub("Obsidian/", "")
-        writefile(AssetPath, game:HttpGet(`{BaseURL}{URLPath}`))
-    end
-
-    for _, Data in ObsidianImageManager.Assets do
-        ObsidianImageManager.DownloadAsset(Data.Path)
-    end
-end
 
 if RunService:IsStudio() then
     if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
@@ -254,7 +169,7 @@ local Templates = {
         CornerRadius = 4,
         NotifySide = "Right",
         ShowCustomCursor = true,
-        Font = Enum.Font.Code,
+        Font = Enum.Font.Jura,
         ToggleKeybind = Enum.KeyCode.RightControl,
         MobileButtonsSide = "Left",
     },
@@ -463,12 +378,18 @@ local function GetPlayers(ExcludeLocalPlayer: boolean?)
         end
     end
 
-    table.sort(PlayerList, function(Player1, Player2)
-        return Player1.Name:lower() < Player2.Name:lower()
+    local PlayerNames = {}
+    for _, Player in ipairs(PlayerList) do
+        table.insert(PlayerNames, Player.DisplayName ~= "" and Player.DisplayName or Player.Name)
+    end
+
+    table.sort(PlayerNames, function(A, B)
+        return A:lower() < B:lower()
     end)
 
-    return PlayerList
+    return PlayerNames
 end
+
 local function GetTeams()
     local TeamList = Teams:GetTeams()
 
@@ -1845,18 +1766,6 @@ do
             Info.Mode = "Toggle"
         end
 
-        local SpecialKeys = {
-            ["MB1"] = Enum.UserInputType.MouseButton1,
-            ["MB2"] = Enum.UserInputType.MouseButton2,
-            ["MB3"] = Enum.UserInputType.MouseButton3
-        }
-
-        local SpecialKeysInput = {
-            [Enum.UserInputType.MouseButton1] = "MB1",
-            [Enum.UserInputType.MouseButton2] = "MB2",
-            [Enum.UserInputType.MouseButton3] = "MB3"
-        }
-
         local Picker = New("TextButton", {
             BackgroundColor3 = "MainColor",
             BorderColor3 = "OutlineColor",
@@ -2057,11 +1966,13 @@ do
                     return false
                 end
 
-                if SpecialKeys[Key] ~= nil then
-                    return UserInputService:IsMouseButtonPressed(SpecialKeys[Key]) and not UserInputService:GetFocusedTextBox();
-                else
-                    return UserInputService:IsKeyDown(Enum.KeyCode[Key]) and not UserInputService:GetFocusedTextBox();
-                end;
+                if Key == "MB1" or Key == "MB2" then
+                    return Key == "MB1" and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+                        or Key == "MB2" and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+                end
+
+                return UserInputService:IsKeyDown(Enum.KeyCode[KeyPicker.Value])
+                    and not UserInputService:GetFocusedTextBox()
             else
                 return KeyPicker.Toggled
             end
@@ -2114,11 +2025,12 @@ do
             local Input = UserInputService.InputBegan:Wait()
             local Key = "Unknown"
 
-            if SpecialKeysInput[Input.UserInputType] ~= nil then
-                Key = SpecialKeysInput[Input.UserInputType];
-
-            elseif Input.UserInputType == Enum.UserInputType.Keyboard then
+            if Input.UserInputType == Enum.UserInputType.Keyboard then
                 Key = Input.KeyCode == Enum.KeyCode.Escape and "None" or Input.KeyCode.Name
+            elseif Input.UserInputType == Enum.UserInputType.MouseButton1 then
+                Key = "MB1"
+            elseif Input.UserInputType == Enum.UserInputType.MouseButton2 then
+                Key = "MB2"
             end
 
             KeyPicker.Value = Key
@@ -2152,10 +2064,14 @@ do
             if KeyPicker.Mode == "Toggle" then
                 local Key = KeyPicker.Value
 
-                if SpecialKeysInput[Input.UserInputType] == Key then
-                    KeyPicker.Toggled = not KeyPicker.Toggled
-                    KeyPicker:DoClick()
-                    
+                if Key == "MB1" or Key == "MB2" then
+                    if
+                        Key == "MB1" and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+                        or Key == "MB2" and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+                    then
+                        KeyPicker.Toggled = not KeyPicker.Toggled
+                        KeyPicker:DoClick()
+                    end
                 elseif Input.UserInputType == Enum.UserInputType.Keyboard and Input.KeyCode.Name == Key then
                     KeyPicker.Toggled = not KeyPicker.Toggled
                     KeyPicker:DoClick()
@@ -2220,7 +2136,7 @@ do
         })
 
         local HolderTransparency = New("ImageLabel", {
-            Image = ObsidianImageManager.GetAsset("TransparencyTexture"),
+            Image = "rbxassetid://139785960036434",
             ImageTransparency = (1 - ColorPicker.Transparency),
             ScaleType = Enum.ScaleType.Tile,
             Size = UDim2.fromScale(1, 1),
@@ -2273,7 +2189,7 @@ do
         --// Sat Map
         local SatVipMap = New("ImageButton", {
             BackgroundColor3 = ColorPicker.Value,
-            Image = ObsidianImageManager.GetAsset("SaturationMap"),
+            Image = "rbxassetid://4155801252",
             Size = UDim2.fromOffset(200, 200),
             Parent = ColorHolder,
         })
@@ -2319,7 +2235,7 @@ do
         local TransparencySelector, TransparencyColor, TransparencyCursor
         if Info.Transparency then
             TransparencySelector = New("ImageButton", {
-                Image = ObsidianImageManager.GetAsset("TransparencyTexture"),
+                Image = "rbxassetid://139785960036434",
                 ScaleType = Enum.ScaleType.Tile,
                 Size = UDim2.fromOffset(16, 200),
                 TileSize = UDim2.fromOffset(8, 8),
@@ -2480,13 +2396,13 @@ do
 
             ColorPicker.Transparency = Info.Transparency and Transparency or 0
             ColorPicker:SetHSVFromRGB(Color)
-            ColorPicker:Update()
+            ColorPicker:Update()			
         end
 
         function ColorPicker:SetValueRGB(Color, Transparency)
             ColorPicker.Transparency = Info.Transparency and Transparency or 0
             ColorPicker:SetHSVFromRGB(Color)
-            ColorPicker:Update()
+            ColorPicker:Update()			
         end
 
         Holder.MouseButton1Click:Connect(ColorMenu.Toggle)
@@ -4123,7 +4039,7 @@ do
 
                         Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
                         Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
-                        Library:UpdateDependencyBoxes()
+						Library:UpdateDependencyBoxes()
                     end)
                 end
 
@@ -4163,7 +4079,7 @@ do
             if not Dropdown.Disabled then
                 Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
                 Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
-                Library:UpdateDependencyBoxes()
+				Library:UpdateDependencyBoxes()
             end
         end
 
@@ -4293,7 +4209,7 @@ do
         return Dropdown
     end
 
-    function Funcs:AddViewport(Idx, Info)
+	    function Funcs:AddViewport(Idx, Info)
         Info = Library:Validate(Info, Templates.Viewport)
 
         local Groupbox = self
@@ -4744,7 +4660,7 @@ do
             for _, Dependency in pairs(Depbox.Dependencies) do
                 local Element = Dependency[1]
                 local Value = Dependency[2]
-
+                
                 if Element.Type == "Toggle" and Element.Value ~= Value then
                     DepboxContainer.Visible = false
                     Depbox.Visible = false
@@ -5139,13 +5055,8 @@ function Library:Notify(...)
         TimerFill.Size = UDim2.fromScale(0, 1)
     end
     if Data.SoundId then
-        local SoundId = Data.SoundId
-        if typeof(SoundId) == "number" then
-            SoundId = `rbxassetid://{SoundId}`
-        end
-
         New("Sound", {
-            SoundId = SoundId,
+            SoundId = "rbxassetid://" .. tostring(Data.SoundId):gsub("rbxassetid://", ""),
             Volume = 3,
             PlayOnRemove = true,
             Parent = SoundService,
@@ -5213,9 +5124,6 @@ function Library:CreateWindow(WindowInfo)
 
     local MainFrame
     local SearchBox
-    local CurrentTabInfo
-    local CurrentTabLabel
-    local CurrentTabDescription
     local ResizeButton
     local Tabs
     local Container
@@ -5269,7 +5177,7 @@ function Library:CreateWindow(WindowInfo)
             Library:MakeOutline(MainFrame, WindowInfo.CornerRadius, 0)
         end
 
-        if WindowInfo.BackgroundImage then
+		if WindowInfo.BackgroundImage then
             New("ImageLabel", {
                 Image = WindowInfo.BackgroundImage,
                 Position = UDim2.fromScale(0, 0),
@@ -5283,7 +5191,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         if WindowInfo.Center then
-            MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset / 2, 0.5, -MainFrame.Size.Y.Offset / 2)
+            MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset / 2 + 540, 0.5, -MainFrame.Size.Y.Offset / 2 + 85)
         end
 
         --// Top Bar \\-
@@ -5310,7 +5218,7 @@ function Library:CreateWindow(WindowInfo)
 
         if WindowInfo.Icon then
             New("ImageLabel", {
-                Image = if tonumber(WindowInfo.Icon) then `rbxassetid://{WindowInfo.Icon}` else WindowInfo.Icon,
+                Image = tonumber(WindowInfo.Icon) and "rbxassetid://" .. WindowInfo.Icon or WindowInfo.Icon,
                 Size = WindowInfo.IconSize,
                 Parent = TitleHolder,
             })
@@ -5330,74 +5238,15 @@ function Library:CreateWindow(WindowInfo)
             Parent = TitleHolder,
         })
 
-        --// Top Right Bar
-        local RightWrapper = New("Frame", {
-            BackgroundTransparency = 1,
+        --// Search Box
+        SearchBox = New("TextBox", {
             AnchorPoint = Vector2.new(0, 0.5),
+            BackgroundColor3 = "MainColor",
+            PlaceholderText = "Element Search...",
             Position = UDim2.new(0.3, 8, 0.5, 0),
             Size = UDim2.new(0.7, -57, 1, -16),
-            Parent = TopBar,
-        })
-
-        New("UIListLayout", {
-            FillDirection = Enum.FillDirection.Horizontal,
-            HorizontalAlignment = Enum.HorizontalAlignment.Right,
-            VerticalAlignment = Enum.VerticalAlignment.Center,
-            Padding = UDim.new(0, 8),
-            Parent = RightWrapper,
-        })
-
-        CurrentTabInfo = New("Frame", {
-            Size = UDim2.fromScale(WindowInfo.DisableSearch and 1 or 0.5, 1),
-            Visible = false,
-            BackgroundTransparency = 1,
-            Parent = RightWrapper,
-        })
-
-        New("UIListLayout", {
-            FillDirection = Enum.FillDirection.Vertical,
-            HorizontalAlignment = Enum.HorizontalAlignment.Left,
-            VerticalAlignment = Enum.VerticalAlignment.Center,
-            Parent = CurrentTabInfo,
-        })
-
-        New("UIPadding", {
-            PaddingBottom = UDim.new(0, 8),
-            PaddingLeft = UDim.new(0, 8),
-            PaddingRight = UDim.new(0, 8),
-            PaddingTop = UDim.new(0, 8),
-            Parent = CurrentTabInfo,
-        })
-
-        CurrentTabLabel = New("TextLabel", {
-            BackgroundTransparency = 1,
-            Size = UDim2.fromScale(1, 0),
-            AutomaticSize = Enum.AutomaticSize.Y,
-            Text = "",
-            TextSize = 14,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Parent = CurrentTabInfo,
-        })
-
-        CurrentTabDescription = New("TextLabel", {
-            BackgroundTransparency = 1,
-            Size = UDim2.fromScale(1, 0),
-            AutomaticSize = Enum.AutomaticSize.Y,
-            Text = "",
-            TextWrapped = true,
-            TextSize = 14,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            TextTransparency = 0.5,
-            Parent = CurrentTabInfo,
-        })
-
-        SearchBox = New("TextBox", {
-            BackgroundColor3 = "MainColor",
-            PlaceholderText = "Search",
-            Size = UDim2.fromScale(1, 1),
             TextScaled = true,
-            Visible = not (WindowInfo.DisableSearch or false),
-            Parent = RightWrapper,
+            Parent = TopBar,
         })
         New("UICorner", {
             CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
@@ -5429,7 +5278,7 @@ function Library:CreateWindow(WindowInfo)
             })
         end
 
-        local MoveIcon = Library:GetIcon("move")
+        local MoveIcon = Library:GetIcon("hard-drive")
         if MoveIcon then
             New("ImageLabel", {
                 AnchorPoint = Vector2.new(1, 0.5),
@@ -5468,14 +5317,14 @@ function Library:CreateWindow(WindowInfo)
         })
 
         --// Footer
-        New("TextLabel", {
+        local FooterLabel = New("TextLabel", {
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
-            Text = WindowInfo.Footer,
+            Text = shared.Footer,
             TextSize = 14,
             TextTransparency = 0.5,
             Parent = BottomBar,
-        })
+        }) shared.FooterLabel = FooterLabel
 
         --// Resize Button
         if WindowInfo.Resizable then
@@ -5546,22 +5395,7 @@ function Library:CreateWindow(WindowInfo)
     --// Window Table \\--
     local Window = {}
 
-    function Window:AddTab(...)
-        local Name = nil
-        local Icon = nil
-        local Description = nil
-
-        if select("#", ...) == 1 and typeof(...) == "table" then
-            local Info = select(1, ...)
-            Name = Info.Name or "Tab"
-            Icon = Info.Icon
-            Description = Info.Description
-        else
-            Name = select(1, ...)
-            Icon = select(2, ...)
-            Description = select(3, ...)
-        end
-
+    function Window:AddTab(Name: string, Icon)
         local TabButton: TextButton
         local TabLabel
         local TabIcon
@@ -5569,13 +5403,11 @@ function Library:CreateWindow(WindowInfo)
         local TabContainer
         local TabLeft
         local TabRight
-		
+
         local WarningBox
-        local WarningBoxScrollingFrame
         local WarningTitle
         local WarningText
         local WarningStroke
-        local WarningBoxLockSize = false
 
         Icon = Library:GetIcon(Icon)
         do
@@ -5683,7 +5515,6 @@ function Library:CreateWindow(WindowInfo)
                 Library:UpdateDPI(TabRight, { Size = TabRight.Size })
             end
 
-            --// Warning Box \\--
             WarningBox = New("Frame", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundColor3 = Color3.fromRGB(127, 0, 0),
@@ -5695,24 +5526,12 @@ function Library:CreateWindow(WindowInfo)
                 Visible = false,
                 Parent = TabContainer,
             })
-
-            WarningBoxScrollingFrame = New("ScrollingFrame", {
-                BackgroundTransparency = 1,
-                BorderSizePixel = 0,
-                AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.new(0.5, 0, 0.5, -3),
-                Size = UDim2.new(1, 0, 1, -3),
-                CanvasSize = UDim2.new(0, 0, 0, 0),
-                AutomaticCanvasSize = Enum.AutomaticSize.Y,
-                ScrollBarThickness = 3,
-                Parent = WarningBox,
-            })
             New("UIPadding", {
                 PaddingBottom = UDim.new(0, 4),
                 PaddingLeft = UDim.new(0, 6),
                 PaddingRight = UDim.new(0, 6),
                 PaddingTop = UDim.new(0, 4),
-                Parent = WarningBoxScrollingFrame,
+                Parent = WarningBox,
             })
 
             WarningTitle = New("TextLabel", {
@@ -5722,7 +5541,7 @@ function Library:CreateWindow(WindowInfo)
                 TextColor3 = Color3.fromRGB(255, 50, 50),
                 TextSize = 14,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Parent = WarningBoxScrollingFrame,
+                Parent = WarningBox,
             })
             WarningStroke = New("UIStroke", {
                 ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
@@ -5734,13 +5553,12 @@ function Library:CreateWindow(WindowInfo)
             WarningText = New("TextLabel", {
                 BackgroundTransparency = 1,
                 Position = UDim2.fromOffset(0, 16),
-                Size = UDim2.new(1, 0, 0, 0),
+                Size = UDim2.fromScale(1, 0),
                 Text = "",
                 TextSize = 14,
-                TextWrapped = true,
-                Parent = WarningBoxScrollingFrame,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                TextYAlignment = Enum.TextYAlignment.Top,
+                TextWrapped = true,
+                Parent = WarningBox,
             })
             New("UIStroke", {
                 ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
@@ -5762,14 +5580,9 @@ function Library:CreateWindow(WindowInfo)
         }
 
         function Tab:UpdateWarningBox(Info)
-            if typeof(Info.LockSize) == "boolean" then
-                WarningBoxLockSize = Info.LockSize
-                Tab:Resize(true)
-            end
-
             if typeof(Info.Visible) == "boolean" then
                 WarningBox.Visible = Info.Visible
-                Tab:Resize(true)
+                Tab:Resize()
             end
 
             if typeof(Info.Title) == "string" then
@@ -5777,8 +5590,17 @@ function Library:CreateWindow(WindowInfo)
             end
 
             if typeof(Info.Text) == "string" then
+                local _, Y = Library:GetTextBounds(
+                    Info.Text,
+                    Library.Scheme.Font,
+                    WarningText.TextSize,
+                    WarningText.AbsoluteSize.X
+                )
+
+                WarningText.Size = UDim2.new(1, 0, 0, Y)
                 WarningText.Text = Info.Text
-                Tab:Resize(true)
+                Library:UpdateDPI(WarningText, { Size = WarningText.Size })
+                Tab:Resize()
             end
 
             WarningBox.BackgroundColor3 = Info.IsNormal == true and Library.Scheme.BackgroundColor
@@ -5817,19 +5639,15 @@ function Library:CreateWindow(WindowInfo)
 
         function Tab:Resize(ResizeWarningBox: boolean?)
             if ResizeWarningBox then
-                local MaximumSize = math.floor(TabContainer.AbsoluteSize.Y / 3.25);
                 local _, Y = Library:GetTextBounds(
                     WarningText.Text,
                     Library.Scheme.Font,
                     WarningText.TextSize,
                     WarningText.AbsoluteSize.X
                 )
-                Y = 14 + 2 + Y + 8
-				
-                if WarningBoxLockSize == true and Y >= MaximumSize then Y = MaximumSize; end
 
-                WarningBox.Size = UDim2.new(1, 0, 0, Y)
-                Library:UpdateDPI(WarningBox, { Size = WarningBox.Size })
+                WarningText.Size = UDim2.new(1, 0, 0, Y)
+                Library:UpdateDPI(WarningText, { Size = WarningText.Size })
             end
 
             local Offset = WarningBox.Visible and WarningBox.AbsoluteSize.Y + 6 or 0
@@ -6152,14 +5970,6 @@ function Library:CreateWindow(WindowInfo)
                     ImageTransparency = 0,
                 }):Play()
             end
-
-            if Description then
-                CurrentTabInfo.Visible = true
-                SearchBox.Size = UDim2.fromScale(0.5, 1)
-                CurrentTabLabel.Text = Name
-                CurrentTabDescription.Text = Description
-            end
-
             TabContainer.Visible = true
 
             Library.ActiveTab = Tab
@@ -6178,9 +5988,6 @@ function Library:CreateWindow(WindowInfo)
                 }):Play()
             end
             TabContainer.Visible = false
-
-            SearchBox.Size = UDim2.fromScale(1, 1)
-            CurrentTabInfo.Visible = false
 
             Library.ActiveTab = nil
         end
@@ -6411,6 +6218,14 @@ function Library:CreateWindow(WindowInfo)
         return Tab
     end
 
+    function Library:UpdateModal()
+	    if not Library.BreakShiftlock then
+		    ModalElement.Modal = Library.Toggled
+        else
+		    ModalElement.Modal = false
+		end
+	end
+
     function Library:Toggle(Value: boolean?)
         if typeof(Value) == "boolean" then
             Library.Toggled = Value
@@ -6419,26 +6234,9 @@ function Library:CreateWindow(WindowInfo)
         end
 
         MainFrame.Visible = Library.Toggled
-        ModalElement.Modal = Library.Toggled
+		Library:UpdateModal()
 
-        if Library.Toggled and not Library.IsMobile then
-            local OldMouseIconEnabled = UserInputService.MouseIconEnabled
-            pcall(function()
-                RunService:UnbindFromRenderStep("ShowCursor")
-            end)
-            RunService:BindToRenderStep("ShowCursor", Enum.RenderPriority.Last.Value, function()
-                UserInputService.MouseIconEnabled = not Library.ShowCustomCursor
-
-                Cursor.Position = UDim2.fromOffset(Mouse.X, Mouse.Y)
-                Cursor.Visible = Library.ShowCustomCursor
-
-                if not (Library.Toggled and ScreenGui and ScreenGui.Parent) then
-                    UserInputService.MouseIconEnabled = OldMouseIconEnabled
-                    Cursor.Visible = false
-                    RunService:UnbindFromRenderStep("ShowCursor")
-                end
-            end)
-        elseif not Library.Toggled then
+        if not Library.Toggled then
             TooltipLabel.Visible = false
             for _, Option in pairs(Library.Options) do
                 if Option.Type == "ColorPicker" then
@@ -6456,7 +6254,7 @@ function Library:CreateWindow(WindowInfo)
     end
 
     if Library.IsMobile then
-        local ToggleButton = Library:AddDraggableButton("Toggle", function()
+        local ToggleButton = Library:AddDraggableButton("OPEN", function()
             Library:Toggle()
         end)
 
